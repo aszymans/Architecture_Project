@@ -8,9 +8,10 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import tensorflow_datasets as tfds
 
-# FIXME TODO: update number of epochs here
-# FYI: each epoch takes around 8k seconds in a CRC single GPU
+# FIXME TODO: update number of epochs and location to save the model
 EPOCHS = 2
+SAVE_LOCATION = "/afs/crc.nd.edu/user/a/amaltar2/"
+# FYI: each epoch takes around 8k seconds in a CRC single GPU (actually running in a CPU!!!)
 
 
 def setup_logger():
@@ -86,7 +87,7 @@ history_fine_tune = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_dat
 
 logger.info("Finished training of VGG19 with imagenette dataset.")
 logger.info(f"Model summary: {model.summary()}")
+
 # saving and loading this model: https://www.tensorflow.org/api_docs/python/tf/saved_model/save
-# TODO: you need to create a directory in your HOME dir, named "model_vgg"
 # NOTE: relative path seems not to work
-model.save("vgg19_trained", "/afs/crc.nd.edu/user/a/amaltar2/model_vgg")
+model.save("vgg19_trained", SAVE_LOCATION)
