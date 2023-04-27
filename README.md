@@ -23,3 +23,24 @@ conda install -n my_tf_env -c conda-forge tensorflow tensorflow-datasets
 ```
 
 With this, your environment should be all set and you can now submit your job through the GE grid package.
+
+## Job submission script
+
+Here is a potential example of how to load the conda environment above and run our application.
+```commandline
+#!/bin/bash
+
+#$ -M your_email_address@nd.edu   # Email address for job notification
+#$ -m abe                # Send mail when job begins, ends and aborts
+#$ -N vgg19_test1        # Specify job name
+#$ -q gpu                # Specify queue
+#$ -l gpu=1              # Specify number of GPU cards to use.
+
+#module load tensorflow/2.6 cuda/11.6
+module load cuda/11.6
+export CURL_CA_BUNDLE=/etc/ssl/certs/ca-bundle.crt
+export XLA_FLAGS="--xla_gpu_cuda_data_dir=/afs/crc.nd.edu/x86_64_linux/c/cuda/11.6"
+
+conda activate my_tf_env
+python3 VGG19.py
+```
