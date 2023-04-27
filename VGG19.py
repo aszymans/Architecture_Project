@@ -28,11 +28,16 @@ logger = setup_logger()
 logger.info("Starting training of VGG19 with imagenette dataset.")
 
 # print GPU devices configuration
-logger.info("GPU configuration: %s", tf.python.client.device_lib.list_local_devices())
+gpu_devices = tf.config.list_physical_devices('GPU')
+logger.info(f"Retrieved GPU devices: {gpu_devices}")
+if gpu_devices:
+    details = tf.config.experimental.get_device_details(gpu_devices[0])
+    logger.info(f"GPU details: {details}")
 
+# doc: https://www.tensorflow.org/datasets/api_docs/python/tfds/load
 tfds.disable_progress_bar()
 (ds_train, ds_val), ds_info = tfds.load(
-    'imagenette',
+    'imagenette/160px-v2',  # imagenette/160px-v2
     split=['train', 'validation'],
     shuffle_files=True,
     as_supervised=True,
@@ -80,5 +85,8 @@ history_fine_tune = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_dat
                               workers=4, use_multiprocessing=True)
 
 logger.info("Finished training of VGG19 with imagenette dataset.")
-
-# Saving and load this model: https://www.tensorflow.org/api_docs/python/tf/keras/Model#example_12
+logger.info(f"Model summary: {model.summary()}")
+# saving and loading this model: https://www.tensorflow.org/api_docs/python/tf/saved_model/save
+# TODO: you need to create a directory in your HOME dir, named "model_vgg"
+# NOTE: relative path seems not to work
+model.save("vgg19_trained", "/afs/crc.nd.edu/user/a/amaltar2/model_vgg")
