@@ -1,3 +1,5 @@
+import logging
+import sys
 import tensorflow as tf
 from tensorflow.keras.applications import VGG19
 from tensorflow.keras.models import Model
@@ -6,8 +8,37 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import tensorflow_datasets as tfds
 
+# FIXME TODO: update number of epochs and location to save the model
+EPOCHS = 2
+SAVE_LOCATION = "/afs/crc.nd.edu/user/a/amaltar2/"
+# FYI: each epoch takes around 8k seconds in a CRC single GPU (actually running in a CPU!!!)
+
+
+def setup_logger():
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(module)s:%(message)s")
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+    return root
+
+
+logger = setup_logger()
+logger.info("Starting training of VGG19 with imagenette dataset.")
+
+# print GPU devices configuration
+gpu_devices = tf.config.list_physical_devices('GPU')
+logger.info(f"Retrieved GPU devices: {gpu_devices}")
+if gpu_devices:
+    details = tf.config.experimental.get_device_details(gpu_devices[0])
+    logger.info(f"GPU details: {details}")
+
+# doc: https://www.tensorflow.org/datasets/api_docs/python/tfds/load
+tfds.disable_progress_bar()
 (ds_train, ds_val), ds_info = tfds.load(
-    'imagenette',
+    'imagenette/160px-v2',  # imagenette/160px-v2
     split=['train', 'validation'],
     shuffle_files=True,
     as_supervised=True,
@@ -37,7 +68,11 @@ for layer in base_model.layers:
 
 model.compile(optimizer=Adam(learning_rate=0.001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-history = model.fit(ds_train, epochs=10, validation_data=ds_val)
+# verbose 1=progress bar; 2=one line per epoch
+history = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_data=ds_val,
+                    workers=4, use_multiprocessing=True)
+
+logger.info(f"Finished training with output metrics: {model.get_metrics_result()}")
 
 for layer in model.layers[:11]: # You can choose a different layer number for fine-tuning
     layer.trainable = False
@@ -47,4 +82,12 @@ for layer in model.layers[11:]:
 model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Fine-tune the model
-history_fine_tune = model.fit(ds_train, epochs=10, validation_data=ds_val)
+history_fine_tune = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_data=ds_val,
+                              workers=4, use_multiprocessing=True)
+
+logger.info("Finished training of VGG19 with imagenette dataset.")
+logger.info(f"Model summary: {model.summary()}")
+
+# saving and loading this model: https://www.tensorflow.org/api_docs/python/tf/saved_model/save
+# NOTE: relative path seems not to work
+model.save("vgg19_trained", SAVE_LOCATION)
