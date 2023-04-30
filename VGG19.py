@@ -5,11 +5,10 @@ from tensorflow.keras.applications import VGG19
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import tensorflow_datasets as tfds
 
 # FIXME TODO: update number of epochs and location to save the model
-EPOCHS = 2
+EPOCHS = 30
 SAVE_LOCATION = "/afs/crc.nd.edu/user/a/amaltar2/"
 # FYI: each epoch takes around 8k seconds in a CRC single GPU (actually running in a CPU!!!)
 
@@ -26,7 +25,7 @@ def setup_logger():
 
 
 logger = setup_logger()
-logger.info("Starting training of VGG19 with imagenette dataset.")
+logger.info(f"Using tensorflow version: {tf.__version__}")
 
 # print GPU devices configuration
 gpu_devices = tf.config.list_physical_devices('GPU')
@@ -35,10 +34,12 @@ if gpu_devices:
     details = tf.config.experimental.get_device_details(gpu_devices[0])
     logger.info(f"GPU details: {details}")
 
+inputDset = 'imagenette'  # 'imagenette/160px-v2'
+logger.info(f"Loading tensorflow dataset name: {inputDset}.")
 # doc: https://www.tensorflow.org/datasets/api_docs/python/tfds/load
 tfds.disable_progress_bar()
 (ds_train, ds_val), ds_info = tfds.load(
-    'imagenette/160px-v2',  # imagenette/160px-v2
+    inputDset,
     split=['train', 'validation'],
     shuffle_files=True,
     as_supervised=True,
@@ -50,6 +51,7 @@ def preprocess(image, label):
     image = tf.cast(image, tf.float32) / 255.0 # Normalize the pixel values
     return image, label
 
+logger.info("Starting training of VGG19 with imagenette dataset.")
 ds_train = ds_train.map(preprocess).batch(32).prefetch(buffer_size=tf.data.AUTOTUNE)
 ds_val = ds_val.map(preprocess).batch(32).prefetch(buffer_size=tf.data.AUTOTUNE)
 
@@ -72,7 +74,8 @@ model.compile(optimizer=Adam(learning_rate=0.001), loss='sparse_categorical_cros
 history = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_data=ds_val,
                     workers=4, use_multiprocessing=True)
 
-logger.info(f"Finished training with output metrics: {model.get_metrics_result()}")
+logger.info(f"Finished training with output summary: {model.summary()}")
+
 
 for layer in model.layers[:11]: # You can choose a different layer number for fine-tuning
     layer.trainable = False
@@ -85,7 +88,7 @@ model.compile(optimizer=Adam(learning_rate=0.0001), loss='sparse_categorical_cro
 history_fine_tune = model.fit(ds_train, epochs=EPOCHS, verbose=2, validation_data=ds_val,
                               workers=4, use_multiprocessing=True)
 
-logger.info("Finished training of VGG19 with imagenette dataset.")
+logger.info("Finished fine training of VGG19 with imagenette dataset.")
 logger.info(f"Model summary: {model.summary()}")
 
 # saving and loading this model: https://www.tensorflow.org/api_docs/python/tf/saved_model/save
