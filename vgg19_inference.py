@@ -1,15 +1,12 @@
 import logging
 import sys
 import tensorflow as tf
-from tensorflow.keras.applications import VGG19
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
-from tensorflow.keras.optimizers import Adam
 import tensorflow_datasets as tfds
 
 # FIXME TODO: update location where model needs to be loaded from
 MODEL_LOCATION = "/afs/crc.nd.edu/user/a/amaltar2/tensor_vgg19/vgg19_trained"
-LOG_LEVEL = logging.DEBUG
+#MODEL_LOCATION = "/Users/amaltar2/Master/Architecture_Project/vgg19_trained"
+LOG_LEVEL = logging.INFO
 
 def setup_logger():
     root = logging.getLogger()
@@ -48,24 +45,23 @@ logger.info(f"Loading tensorflow dataset name: {inputDset}.")
 # doc: https://www.tensorflow.org/datasets/api_docs/python/tfds/load
 tfds.disable_progress_bar()
 input_ds, metadata = tfds.load(inputDset,
-                               split=['validation'],
-                               shuffle_files=True,
+                               split=['validation[:10]'],  # load only 10 images
+                               shuffle_files=False,
                                as_supervised=True,
                                with_info=True)
+# get the tensorflow.python.data.ops.dataset_ops.PrefetchDataset data object
+input_ds = input_ds[0]
 
-logger.debug(f"Dataset val_ds type: {type(input_ds)}")
-logger.debug(f"Dataset val_ds type first: {type(input_ds[0])}")
-logger.debug(f"Dataset val_ds first: {input_ds[0]}")
+logger.debug(f"Dataset input_dst: {input_ds}")
 logger.debug(f"Dataset metadata: {metadata}")
 
 logger.info("Starting training of VGG19 with imagenette dataset.")
-#input_ds = map(preprocess, input_ds)
 input_ds = input_ds.map(preprocess).batch(32).prefetch(buffer_size=tf.data.AUTOTUNE)
 
-logger.info(f"Dataset val_ds type: {type(input_ds)}")
-
 # Evaluate the restored model
-#loss, acc = model.evaluate(val_ds, metadata, verbose=2)
+result = model.evaluate(input_ds, verbose=2)
+logger.info(f"Evaluation result for labels {model.metrics_names} is: {result}")
+
 array_predictions = model.predict(input_ds, verbose=2)
 logger.info(f"Predictions: {array_predictions}")
 
